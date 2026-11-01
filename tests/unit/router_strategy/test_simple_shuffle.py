@@ -102,3 +102,36 @@ def test_scoped_weights_approximate_the_configured_split() -> None:
         for _ in range(1000)
     )
     assert 700 < counts["primary"] < 900
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("metric", ["rpm", "tpm"])
+async def test_weighted_pick_reads_the_limit_from_rate_limits(metric: str):
+    router = Router(
+        model_list=[
+            _deployment("unweighted"),
+            _deployment("weighted", {"rate_limits": {metric: 5}}),
+        ],
+        routing_strategy="simple-shuffle",
+        num_retries=0,
+    )
+
+    counts = await _draw_model_ids(router)
+
+    assert counts["weighted"] == DRAWS
+
+
+@pytest.mark.asyncio
+async def test_rate_limits_win_over_the_legacy_limit_when_weighing():
+    router = Router(
+        model_list=[
+            _deployment("legacy_only", {"rpm": 100}),
+            _deployment("both", {"rpm": 1, "rate_limits": {"rpm": 1000}}),
+        ],
+        routing_strategy="simple-shuffle",
+        num_retries=0,
+    )
+
+    counts = await _draw_model_ids(router)
+
+    assert counts["both"] > counts["legacy_only"] * 3
