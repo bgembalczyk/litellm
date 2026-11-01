@@ -193,6 +193,7 @@ class DeploymentOptions:
     rpd: int | None = None
     tpd: int | None = None
     daily_reset_time: str | None = None
+    rate_limits: Mapping[str, object] | None = None
     kubernetes_pod_discovery: bool | None = None
     default_api_key_rpm_limit: int | None = None
     default_api_key_tpm_limit: int | None = None

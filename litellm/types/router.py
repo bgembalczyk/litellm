@@ -579,6 +579,54 @@ def parse_daily_reset_time(value: str | None) -> datetime.timedelta:
     return datetime.timedelta(hours=parsed.hour, minutes=parsed.minute)
 
 
+_LimitValue: TypeAlias = Annotated[int | None, Field(ge=0)]
+
+
+class RateLimitWindows(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    rps: _LimitValue = None
+    rpm: _LimitValue = None
+    rph: _LimitValue = None
+    rpd: _LimitValue = None
+    rpm_month: _LimitValue = None
+    tpm: _LimitValue = None
+    tph: _LimitValue = None
+    tpd: _LimitValue = None
+    tpm_month: _LimitValue = None
+
+    def windows(self) -> Mapping[str, int]:
+        return {
+            kind: limit
+            for kind, limit in (
+                ("rps", self.rps),
+                ("rpm", self.rpm),
+                ("rph", self.rph),
+                ("rpd", self.rpd),
+                ("rpm_month", self.rpm_month),
+                ("tpm", self.tpm),
+                ("tph", self.tph),
+                ("tpd", self.tpd),
+                ("tpm_month", self.tpm_month),
+            )
+            if limit is not None
+        }
+
+
+class SharedRateLimits(RateLimitWindows):
+    """Limits counted together across every deployment that names the same `group`, e.g. one provider API key."""
+
+    group: str = Field(min_length=1)
+
+
+class DeploymentRateLimits(RateLimitWindows):
+    """Every limit a deployment can have, plus the limits it shares with other deployments.
+
+    Replaces top-level `rpm`, `tpm`, `rpd` and `tpd`, which are still read when a limit is not set here.
+    """
+
+    shared: SharedRateLimits | None = None
+
+
 class GenericLiteLLMParams(CredentialLiteLLMParams, CustomPricingLiteLLMParams):
     """
     LiteLLM Params without 'model' arg (used across completion / assistants api)
@@ -597,6 +645,7 @@ class GenericLiteLLMParams(CredentialLiteLLMParams, CustomPricingLiteLLMParams):
     tpd: int | None = None
     rpd: int | None = None
     daily_reset_time: str | None = None
+    rate_limits: DeploymentRateLimits | None = None
     timeout: float | str | httpx.Timeout | SDKTimeout | None = None  # if str, pass in as os.environ/
     # read timeout of a live stream, a faked stream takes the longer of this and timeout. If str, pass in as os.environ/
     stream_timeout: float | str | None = None
@@ -815,6 +864,7 @@ class LiteLLMParamsTypedDict(TypedDict, total=False):
     tpd: ReadOnly[int | None]
     rpd: ReadOnly[int | None]
     daily_reset_time: ReadOnly[str | None]
+    rate_limits: ReadOnly[Mapping[str, object] | None]
     order: int | None
     weight: int | None
     max_parallel_requests: int | None

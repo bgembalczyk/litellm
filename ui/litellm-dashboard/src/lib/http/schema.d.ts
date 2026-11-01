@@ -32031,6 +32031,33 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * DeploymentRateLimits
+         * @description Every limit a deployment can have, plus the limits it shares with other deployments.
+         *
+         *     Replaces top-level `rpm`, `tpm`, `rpd` and `tpd`, which are still read when a limit is not set here.
+         */
+        DeploymentRateLimits: {
+            /** Rpd */
+            rpd?: number | null;
+            /** Rph */
+            rph?: number | null;
+            /** Rpm */
+            rpm?: number | null;
+            /** Rpm Month */
+            rpm_month?: number | null;
+            /** Rps */
+            rps?: number | null;
+            shared?: components["schemas"]["SharedRateLimits"] | null;
+            /** Tpd */
+            tpd?: number | null;
+            /** Tph */
+            tph?: number | null;
+            /** Tpm */
+            tpm?: number | null;
+            /** Tpm Month */
+            tpm_month?: number | null;
+        };
         /** DeploymentWarning */
         DeploymentWarning: {
             /** Id */
@@ -35881,6 +35908,7 @@ export interface components {
             } | null;
             /** Quality Router Default Model */
             quality_router_default_model?: string | null;
+            rate_limits?: components["schemas"]["DeploymentRateLimits"] | null;
             /** Region Name */
             region_name?: string | null;
             /** Regional Endpoint Uplift Multiplier */
@@ -45852,6 +45880,32 @@ export interface components {
             turn_count: number;
         };
         /**
+         * SharedRateLimits
+         * @description Limits counted together across every deployment that names the same `group`, e.g. one provider API key.
+         */
+        SharedRateLimits: {
+            /** Group */
+            group: string;
+            /** Rpd */
+            rpd?: number | null;
+            /** Rph */
+            rph?: number | null;
+            /** Rpm */
+            rpm?: number | null;
+            /** Rpm Month */
+            rpm_month?: number | null;
+            /** Rps */
+            rps?: number | null;
+            /** Tpd */
+            tpd?: number | null;
+            /** Tph */
+            tph?: number | null;
+            /** Tpm */
+            tpm?: number | null;
+            /** Tpm Month */
+            tpm_month?: number | null;
+        };
+        /**
          * ShellCall
          * @description A tool representing a request to execute one or more shell commands.
          */
@@ -51434,6 +51488,7 @@ export interface components {
             } | null;
             /** Quality Router Default Model */
             quality_router_default_model?: string | null;
+            rate_limits?: components["schemas"]["DeploymentRateLimits"] | null;
             /** Region Name */
             region_name?: string | null;
             /** Regional Endpoint Uplift Multiplier */

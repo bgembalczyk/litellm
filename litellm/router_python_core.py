@@ -5287,6 +5287,7 @@ class PythonCore(DeprecatedRouterMembers):
         ):
             kwargs.pop(key, None)
         kwargs.pop("daily_reset_time", None)  # pyright: ignore[reportUnknownMemberType]  # kwargs is an untyped dict
+        kwargs.pop("rate_limits", None)  # pyright: ignore[reportUnknownMemberType]  # kwargs is an untyped dict
         defaults: Final = _LITELLM_PARAMS_ADAPTER.validate_python(self._core_default_litellm_params)
         self._merge_tools_from_deployment(deployment=deployment, kwargs=kwargs, defaults=defaults)
 
