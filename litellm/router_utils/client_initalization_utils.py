@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Final
 
 from litellm.exceptions import RateLimitError, RateLimitErrorCategory, RateLimitType
 from litellm.router_deprecated import renamed_router_param
+from litellm.router_utils.pre_call_checks.window_rate_limits import rpm_tpm_limits
 from litellm.types.router import RouterErrors
 from litellm.utils import calculate_max_parallel_requests
 
@@ -53,8 +54,7 @@ class InitalizeCachedClient:
     def set_max_parallel_requests_client(ctx: "RoutingContext", model: dict):
         litellm_params: Final = model.get("litellm_params", {})
         model_id: Final = model["model_info"]["id"]
-        rpm: Final = litellm_params.get("rpm", None)
-        tpm: Final = litellm_params.get("tpm", None)
+        rpm, tpm = rpm_tpm_limits({"litellm_params": litellm_params})
         max_parallel_requests: Final = litellm_params.get("max_parallel_requests", None)
         calculated_max_parallel_requests: Final = calculate_max_parallel_requests(
             rpm=rpm,

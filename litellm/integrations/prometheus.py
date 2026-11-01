@@ -67,6 +67,7 @@ from litellm.repositories.table_repositories import EndUserRepository
 from litellm.repositories.team_repository import TeamRepository
 from litellm.repositories.user_repository import UserRepository
 from litellm.router_api import deployment_metadata
+from litellm.router_utils.pre_call_checks.window_rate_limits import rpm_tpm_limits
 from litellm.types.guardrails import GuardrailEventHooks
 from litellm.types.integrations.prometheus import *
 from litellm.types.integrations.prometheus import (
@@ -3394,8 +3395,7 @@ class PrometheusLogger(CustomLogger):
                 from the caller's already-resolved enum_values.model_group (trusted,
                 not caller-supplied at this call site)
         """
-        tpm: Final = model_info.get("tpm") or litellm_params.get("tpm")
-        rpm: Final = model_info.get("rpm") or litellm_params.get("rpm")
+        rpm, tpm = rpm_tpm_limits({"model_info": model_info, "litellm_params": litellm_params})
 
         if tpm is not None:
             _labels = prometheus_label_factory(

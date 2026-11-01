@@ -16,6 +16,7 @@ from litellm.integrations.custom_logger import CustomLogger
 from litellm.litellm_core_utils.batch_utils import is_batch_retrieve_call_type
 from litellm.litellm_core_utils.core_helpers import get_parent_otel_span_from_kwargs, safe_divide_seconds
 from litellm.responses.utils import ResponseAPILoggingUtils
+from litellm.router_utils.pre_call_checks.window_rate_limits import rpm_tpm_limits
 from litellm.types.llms.openai import ResponsesAPIResponse
 from litellm.types.utils import LiteLLMPydanticObjectBase
 
@@ -461,19 +462,10 @@ class LowestLatencyLoggingHandler(CustomLogger):
             if _deployment is None:
                 continue  # skip to next one
 
-            _deployment_tpm = (
-                _deployment.get("tpm", None)
-                or _deployment.get("litellm_params", {}).get("tpm", None)
-                or _deployment.get("model_info", {}).get("tpm", None)
-                or float("inf")
-            )
+            _configured_rpm, _configured_tpm = rpm_tpm_limits(_deployment)
+            _deployment_tpm = _configured_tpm or float("inf")
 
-            _deployment_rpm = (
-                _deployment.get("rpm", None)
-                or _deployment.get("litellm_params", {}).get("rpm", None)
-                or _deployment.get("model_info", {}).get("rpm", None)
-                or float("inf")
-            )
+            _deployment_rpm = _configured_rpm or float("inf")
             item_latency = item_map.get("latency_normalized", [])
             item_ttft_latency = item_map.get("time_to_first_token_seconds", [])
             item_rpm = item_map.get(precise_minute, {}).get("rpm", 0)

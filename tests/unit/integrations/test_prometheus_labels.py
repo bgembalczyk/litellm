@@ -1227,6 +1227,28 @@ def test_deployment_tpm_rpm_limit_metrics_emit_model_group_from_enum_values():
         _clear_prometheus_registry()
 
 
+def test_deployment_limit_gauges_read_rate_limits():
+    from litellm.integrations.prometheus import PrometheusLogger
+
+    _clear_prometheus_registry()
+    try:
+        logger = PrometheusLogger()
+        logger._set_deployment_tpm_rpm_limit_metrics(
+            model_info={"id": "model-123"},
+            litellm_params={"rate_limits": {"rpm": 5, "tpm": 50}},
+            litellm_model_name="gpt-4o-mini",
+            model_id="model-123",
+            api_base=None,
+            llm_provider="openai",
+            model_group="grp",
+        )
+
+        assert {m._value.get() for m in logger.litellm_deployment_rpm_limit._metrics.values()} == {5}
+        assert {m._value.get() for m in logger.litellm_deployment_tpm_limit._metrics.values()} == {50}
+    finally:
+        _clear_prometheus_registry()
+
+
 def test_model_group_in_latency_metrics():
     """
     Test that model_group label is present on the end-to-end / per-call

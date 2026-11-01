@@ -17,6 +17,7 @@ from litellm.caching.caching import DualCache
 from litellm.integrations.custom_logger import CustomLogger
 from litellm.litellm_core_utils.batch_utils import is_batch_retrieve_call_type
 from litellm.litellm_core_utils.core_helpers import get_parent_otel_span_from_kwargs
+from litellm.router_utils.pre_call_checks.window_rate_limits import rpm_tpm_limits
 from litellm.types.router import RouterErrors
 from litellm.types.utils import LiteLLMPydanticObjectBase, StandardLoggingPayload
 from litellm.utils import get_utc_datetime, print_verbose
@@ -121,13 +122,7 @@ class LowestTPMLoggingHandler_v2(BaseRoutingStrategy, CustomLogger):
 
             local_result: Final = self.router_cache.get_cache(key=rpm_key, local_only=True)  # check local result first
 
-            deployment_rpm = None
-            if deployment_rpm is None:
-                deployment_rpm = deployment.get("rpm")
-            if deployment_rpm is None:
-                deployment_rpm = deployment.get("litellm_params", {}).get("rpm")
-            if deployment_rpm is None:
-                deployment_rpm = deployment.get("model_info", {}).get("rpm")
+            deployment_rpm, _ = rpm_tpm_limits(deployment)
             if deployment_rpm is None:
                 deployment_rpm = float("inf")
 
@@ -202,13 +197,7 @@ class LowestTPMLoggingHandler_v2(BaseRoutingStrategy, CustomLogger):
                 key=rpm_key, local_only=True
             )  # check local result first
 
-            deployment_rpm = None
-            if deployment_rpm is None:
-                deployment_rpm = deployment.get("rpm")
-            if deployment_rpm is None:
-                deployment_rpm = deployment.get("litellm_params", {}).get("rpm")
-            if deployment_rpm is None:
-                deployment_rpm = deployment.get("model_info", {}).get("rpm")
+            deployment_rpm, _ = rpm_tpm_limits(deployment)
             if deployment_rpm is None:
                 deployment_rpm = float("inf")
             if local_result is not None and local_result >= deployment_rpm:
@@ -363,23 +352,12 @@ class LowestTPMLoggingHandler_v2(BaseRoutingStrategy, CustomLogger):
             elif item_tpm is None:
                 continue  # skip if unhealthy deployment
 
-            _deployment_tpm = None
-            if _deployment_tpm is None:
-                _deployment_tpm = _deployment.get("tpm")
-            if _deployment_tpm is None:
-                _deployment_tpm = _deployment.get("litellm_params", {}).get("tpm")
-            if _deployment_tpm is None:
-                _deployment_tpm = _deployment.get("model_info", {}).get("tpm")
+            _configured_rpm, _configured_tpm = rpm_tpm_limits(_deployment)
+            _deployment_tpm = _configured_tpm
             if _deployment_tpm is None:
                 _deployment_tpm = float("inf")
 
-            _deployment_rpm = None
-            if _deployment_rpm is None:
-                _deployment_rpm = _deployment.get("rpm")
-            if _deployment_rpm is None:
-                _deployment_rpm = _deployment.get("litellm_params", {}).get("rpm")
-            if _deployment_rpm is None:
-                _deployment_rpm = _deployment.get("model_info", {}).get("rpm")
+            _deployment_rpm = _configured_rpm
             if _deployment_rpm is None:
                 _deployment_rpm = float("inf")
             if item_tpm + input_tokens > _deployment_tpm or (
@@ -530,13 +508,8 @@ class LowestTPMLoggingHandler_v2(BaseRoutingStrategy, CustomLogger):
                 if isinstance(_deployment, dict):
                     id = _deployment.get("model_info", {}).get("id")
                     ### GET DEPLOYMENT TPM LIMIT ###
-                    _deployment_tpm = None
-                    if _deployment_tpm is None:
-                        _deployment_tpm = _deployment.get("tpm", None)
-                    if _deployment_tpm is None:
-                        _deployment_tpm = _deployment.get("litellm_params", {}).get("tpm", None)
-                    if _deployment_tpm is None:
-                        _deployment_tpm = _deployment.get("model_info", {}).get("tpm", None)
+                    _configured_rpm, _configured_tpm = rpm_tpm_limits(_deployment)
+                    _deployment_tpm = _configured_tpm
                     if _deployment_tpm is None:
                         _deployment_tpm = float("inf")
 
@@ -544,13 +517,7 @@ class LowestTPMLoggingHandler_v2(BaseRoutingStrategy, CustomLogger):
                     current_tpm = tpm_values[index] if tpm_values else 0
 
                     ### GET DEPLOYMENT TPM LIMIT ###
-                    _deployment_rpm = None
-                    if _deployment_rpm is None:
-                        _deployment_rpm = _deployment.get("rpm", None)
-                    if _deployment_rpm is None:
-                        _deployment_rpm = _deployment.get("litellm_params", {}).get("rpm", None)
-                    if _deployment_rpm is None:
-                        _deployment_rpm = _deployment.get("model_info", {}).get("rpm", None)
+                    _deployment_rpm = _configured_rpm
                     if _deployment_rpm is None:
                         _deployment_rpm = float("inf")
 
@@ -641,13 +608,8 @@ class LowestTPMLoggingHandler_v2(BaseRoutingStrategy, CustomLogger):
                 if isinstance(_deployment, dict):
                     id = _deployment.get("model_info", {}).get("id")
                     ### GET DEPLOYMENT TPM LIMIT ###
-                    _deployment_tpm = None
-                    if _deployment_tpm is None:
-                        _deployment_tpm = _deployment.get("tpm", None)
-                    if _deployment_tpm is None:
-                        _deployment_tpm = _deployment.get("litellm_params", {}).get("tpm", None)
-                    if _deployment_tpm is None:
-                        _deployment_tpm = _deployment.get("model_info", {}).get("tpm", None)
+                    _configured_rpm, _configured_tpm = rpm_tpm_limits(_deployment)
+                    _deployment_tpm = _configured_tpm
                     if _deployment_tpm is None:
                         _deployment_tpm = float("inf")
 
@@ -655,13 +617,7 @@ class LowestTPMLoggingHandler_v2(BaseRoutingStrategy, CustomLogger):
                     current_tpm = tpm_values[index] if tpm_values else 0
 
                     ### GET DEPLOYMENT TPM LIMIT ###
-                    _deployment_rpm = None
-                    if _deployment_rpm is None:
-                        _deployment_rpm = _deployment.get("rpm", None)
-                    if _deployment_rpm is None:
-                        _deployment_rpm = _deployment.get("litellm_params", {}).get("rpm", None)
-                    if _deployment_rpm is None:
-                        _deployment_rpm = _deployment.get("model_info", {}).get("rpm", None)
+                    _deployment_rpm = _configured_rpm
                     if _deployment_rpm is None:
                         _deployment_rpm = float("inf")
 

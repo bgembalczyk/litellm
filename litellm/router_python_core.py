@@ -404,6 +404,7 @@ from litellm.router_utils.pre_call_checks.model_rate_limit_check import (
 from litellm.router_utils.pre_call_checks.prompt_caching_deployment_check import (
     PromptCachingDeploymentCheck,
 )
+from litellm.router_utils.pre_call_checks.window_rate_limits import rpm_tpm_limits
 from litellm.router_utils.request_priority import (
     InvalidPriority,
     parse_default_priority,
@@ -10086,11 +10087,9 @@ class PythonCore(DeprecatedRouterMembers):
             deployment=deployment_info,
             received_model_name=model_group,
         )
+        deployment_dict: Final = deployment_info.model_dump()
         configured_limits: Final = (
-            deployment_info.get("tpm", None),
-            deployment_info.get("rpm", None),
-            deployment_info.litellm_params.tpm,
-            deployment_info.litellm_params.rpm,
+            *rpm_tpm_limits(deployment_dict),
             deployment_model_info.get("tpm", None),
             deployment_model_info.get("rpm", None),
         )
@@ -10098,9 +10097,7 @@ class PythonCore(DeprecatedRouterMembers):
         ## set. IO deployments still record TPM/RPM usage here so TPM-aware
         ## routing strategies see their real load in mixed model groups; their
         ## itpm/otpm enforcement runs separately in ModelRateLimitingCheck.
-        return any(limit is not None for limit in configured_limits) or deployment_has_io_token_limits(
-            deployment_info.model_dump()
-        )
+        return any(limit is not None for limit in configured_limits) or deployment_has_io_token_limits(deployment_dict)
 
     def sync_deployment_callback_on_success(
         self,
@@ -13123,23 +13120,7 @@ class PythonCore(DeprecatedRouterMembers):
             model_litellm_params = model.get("litellm_params", {})
             model_info_dict = model.get("model_info", {})
 
-            # get model tpm
-            _deployment_tpm: int | None = None
-            if _deployment_tpm is None:
-                _deployment_tpm = model.get("tpm", None)
-            if _deployment_tpm is None:
-                _deployment_tpm = model_litellm_params.get("tpm", None)
-            if _deployment_tpm is None:
-                _deployment_tpm = model_info_dict.get("tpm", None)
-
-            # get model rpm
-            _deployment_rpm: int | None = None
-            if _deployment_rpm is None:
-                _deployment_rpm = model.get("rpm", None)
-            if _deployment_rpm is None:
-                _deployment_rpm = model_litellm_params.get("rpm", None)
-            if _deployment_rpm is None:
-                _deployment_rpm = model_info_dict.get("rpm", None)
+            _deployment_rpm, _deployment_tpm = rpm_tpm_limits(model)
 
             _deployment_itpm: int | None = model.get("itpm")
             if _deployment_itpm is None:

@@ -1259,30 +1259,33 @@ def test_list_order_preserved_after_multiple_trims():
         assert abs(latency_list[i] - expected) < tolerance, f"At index {i}, expected ~{expected}, got {latency_list[i]}"
 
 
+@pytest.mark.parametrize("nested", [False, True], ids=["legacy_spelling", "rate_limits"])
 @pytest.mark.parametrize("async_mode", [False, True])
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("frozen_latency_clock")
-async def test_usage_limits_filter_sync_and_async_logging(async_mode: bool) -> None:
+async def test_usage_limits_filter_sync_and_async_logging(async_mode: bool, nested: bool) -> None:
+    def limits(**values: int) -> dict[str, object]:
+        return {"rate_limits": values} if nested else values
+
     cache: Final = DualCache()
     handler: Final = LowestLatencyLoggingHandler(router_cache=cache)
     model_group: Final = "usage-limits"
     deployments: Final = [
         {
             "model_name": model_group,
-            "litellm_params": {"model": "openai/gpt-4o-mini", "rpm": 1},
+            "litellm_params": {"model": "openai/gpt-4o-mini", **limits(rpm=1)},
             "model_info": {"id": "rpm-limited"},
         },
         {
             "model_name": model_group,
-            "litellm_params": {"model": "openai/gpt-4o-mini", "tpm": 1},
+            "litellm_params": {"model": "openai/gpt-4o-mini", **limits(tpm=1)},
             "model_info": {"id": "tpm-limited"},
         },
         {
             "model_name": model_group,
             "litellm_params": {
                 "model": "openai/gpt-4o-mini",
-                "rpm": 3,
-                "tpm": 1000,
+                **limits(rpm=3, tpm=1000),
             },
             "model_info": {"id": "available"},
         },

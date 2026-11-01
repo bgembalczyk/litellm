@@ -17,10 +17,11 @@ import litellm
 from litellm import Router
 from litellm.caching.dual_cache import DualCache
 from litellm.caching.redis_cache import RedisCircuitBreakerOpenError
+from litellm.router_utils.client_initalization_utils import InitalizeCachedClient
 from litellm.router_utils.pre_call_checks.model_rate_limit_check import (
     ModelRateLimitingCheck,
 )
-from litellm.router_utils.pre_call_checks.window_rate_limits import WindowDeployment
+from litellm.router_utils.pre_call_checks.window_rate_limits import WindowDeployment, rpm_tpm_limits
 
 TPM_DEPLOYMENT = {
     "tpm": 1000,
@@ -1307,3 +1308,63 @@ class TestRateLimitsConfig:
             router.discard()
 
         assert (first.choices[0].message.content, second.choices[0].message.content) == ("a", "b")
+
+
+class TestRateLimitsReadByTheRestOfTheRouter:
+    @staticmethod
+    def _router(rate_limits: dict[str, int]) -> Router:
+        return Router(
+            model_list=[
+                {
+                    "model_name": "grp",
+                    "litellm_params": {"model": "openai/gpt-4o", "api_key": "k", "rate_limits": rate_limits},
+                    "model_info": {"id": "d1"},
+                }
+            ]
+        )
+
+    def test_model_group_info_reports_the_limits(self):
+        info = self._router({"rpm": 7, "tpm": 700}).get_model_group_info("grp")
+
+        assert info is not None
+        assert (info.rpm, info.tpm) == (7, 700)
+
+    def test_rate_limits_override_the_legacy_limits_in_model_group_info(self):
+        router = Router(
+            model_list=[
+                {
+                    "model_name": "grp",
+                    "litellm_params": {
+                        "model": "openai/gpt-4o",
+                        "api_key": "k",
+                        "rpm": 1,
+                        "rate_limits": {"rpm": 9},
+                    },
+                    "model_info": {"id": "d1"},
+                }
+            ]
+        )
+
+        info = router.get_model_group_info("grp")
+
+        assert info is not None
+        assert info.rpm == 9
+
+    def test_rpm_in_rate_limits_sizes_the_parallel_request_semaphore(self):
+        ctx = MagicMock()
+        ctx.settings.return_value.default_max_parallel_requests = None
+
+        InitalizeCachedClient.set_max_parallel_requests_client(
+            ctx=ctx,
+            model={
+                "model_name": "grp",
+                "litellm_params": {"model": "openai/gpt-4o", "rate_limits": {"rpm": 3}},
+                "model_info": {"id": "d1"},
+            },
+        )
+
+        stored = ctx.health.return_value.store.set_cache.call_args.kwargs["value"]
+        assert stored.max_parallel_requests == 3
+
+    def test_rpm_tpm_limits_fall_back_to_none_for_a_malformed_deployment(self):
+        assert rpm_tpm_limits({"litellm_params": {"rate_limits": {"rpm": -1}}}) == (None, None)

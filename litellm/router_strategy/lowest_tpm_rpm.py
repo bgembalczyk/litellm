@@ -10,6 +10,7 @@ from litellm._logging import verbose_router_logger
 from litellm.caching.caching import DualCache
 from litellm.integrations.custom_logger import CustomLogger
 from litellm.litellm_core_utils.batch_utils import is_batch_retrieve_call_type
+from litellm.router_utils.pre_call_checks.window_rate_limits import rpm_tpm_limits
 from litellm.types.utils import LiteLLMPydanticObjectBase
 from litellm.utils import print_verbose
 
@@ -207,23 +208,12 @@ class LowestTPMLoggingHandler(CustomLogger):
             if _deployment is None:
                 continue  # skip to next one
 
-            _deployment_tpm = None
-            if _deployment_tpm is None:
-                _deployment_tpm = _deployment.get("tpm")
-            if _deployment_tpm is None:
-                _deployment_tpm = _deployment.get("litellm_params", {}).get("tpm")
-            if _deployment_tpm is None:
-                _deployment_tpm = _deployment.get("model_info", {}).get("tpm")
+            _configured_rpm, _configured_tpm = rpm_tpm_limits(_deployment)
+            _deployment_tpm = _configured_tpm
             if _deployment_tpm is None:
                 _deployment_tpm = float("inf")
 
-            _deployment_rpm = None
-            if _deployment_rpm is None:
-                _deployment_rpm = _deployment.get("rpm")
-            if _deployment_rpm is None:
-                _deployment_rpm = _deployment.get("litellm_params", {}).get("rpm")
-            if _deployment_rpm is None:
-                _deployment_rpm = _deployment.get("model_info", {}).get("rpm")
+            _deployment_rpm = _configured_rpm
             if _deployment_rpm is None:
                 _deployment_rpm = float("inf")
 

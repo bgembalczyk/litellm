@@ -5,7 +5,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Final, Literal, Protocol, TypeAlias, assert_never
 
 import httpx
-from pydantic import BaseModel, ConfigDict, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 import litellm
 from litellm.caching.redis_cache import RedisCircuitBreakerOpenError
@@ -222,6 +222,14 @@ class WindowDeployment(BaseModel):
             ),
             num_retries=0 if fail_fast else None,
         )
+
+
+def rpm_tpm_limits(deployment: object) -> tuple[int | None, int | None]:
+    try:
+        limits: Final = WindowDeployment.model_validate(deployment).limits()
+    except ValidationError:
+        return None, None
+    return limits.get("rpm"), limits.get("tpm")
 
 
 def _counters(

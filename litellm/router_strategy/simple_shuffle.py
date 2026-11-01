@@ -6,7 +6,9 @@ import logging
 import random
 from collections.abc import Callable, Mapping, Sequence
 from itertools import chain
-from typing import Final, TypeVar, cast
+from typing import Final, TypeVar
+
+from pydantic import TypeAdapter
 
 from litellm.types.router_weights import validate_router_weights
 
@@ -14,8 +16,11 @@ _DeploymentT = TypeVar("_DeploymentT", bound=Mapping[str, object])
 _ROUTER_LOGGER: Final = logging.getLogger("LiteLLM Router")
 
 
+_MAPPING: Final = TypeAdapter[Mapping[str, object]](Mapping[str, object])
+
+
 def _mapping(value: object) -> Mapping[str, object]:
-    return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else {}
+    return _MAPPING.validate_python(value) if isinstance(value, Mapping) else {}
 
 
 def _metric_weight(deployment: Mapping[str, object], metric: str) -> float:

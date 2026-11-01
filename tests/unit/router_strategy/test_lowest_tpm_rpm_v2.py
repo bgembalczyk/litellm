@@ -717,3 +717,27 @@ def setup_and_teardown():
         if hasattr(litellm, "in_memory_llm_clients_cache"):
             litellm.in_memory_llm_clients_cache.flush_cache()
     yield
+
+
+def test_return_potential_deployments_reads_rpm_from_rate_limits():
+    deployments = [
+        {
+            "model_name": "model-test",
+            "litellm_params": {"rate_limits": {"rpm": 1}, "model": "openai/gpt-3.5-turbo"},
+            "model_info": {"id": "capped"},
+        },
+        {
+            "model_name": "model-test",
+            "litellm_params": {"rate_limits": {"rpm": 10}, "model": "openai/o1-mini"},
+            "model_info": {"id": "open"},
+        },
+    ]
+
+    potential = LowestTPMLoggingHandler(router_cache=DualCache())._return_potential_deployments(
+        healthy_deployments=deployments,
+        all_deployments={"capped:tpm:02-17": 0, "open:tpm:02-17": 0},
+        input_tokens=98,
+        rpm_dict={"capped": 1, "open": None},
+    )
+
+    assert [d["model_info"]["id"] for d in potential] == ["open"]

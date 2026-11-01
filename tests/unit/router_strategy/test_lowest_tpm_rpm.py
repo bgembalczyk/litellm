@@ -60,11 +60,15 @@ def test_usage_based_routing_v1_selects_the_lowest_recorded_tpm() -> None:
     assert deployment["model_info"]["id"] == LOW_USAGE_DEPLOYMENT_ID
 
 
-def test_usage_based_routing_v1_skips_a_deployment_whose_tpm_limit_is_used_up() -> None:
+@pytest.mark.parametrize("nested", [False, True], ids=["legacy_spelling", "rate_limits"])
+def test_usage_based_routing_v1_skips_a_deployment_whose_tpm_limit_is_used_up(nested: bool) -> None:
+    def limit(tpm: int) -> dict[str, object]:
+        return {"litellm_params": {**_deployment("x")["litellm_params"], "rate_limits": {"tpm": tpm}}} if nested else {"tpm": tpm}
+
     router: Final = Router(
         model_list=[
-            {**_deployment(LOW_USAGE_DEPLOYMENT_ID), "tpm": 100},
-            {**_deployment(HIGH_USAGE_DEPLOYMENT_ID), "tpm": 1000},
+            {**_deployment(LOW_USAGE_DEPLOYMENT_ID), **limit(100)},
+            {**_deployment(HIGH_USAGE_DEPLOYMENT_ID), **limit(1000)},
         ],
         routing_strategy="usage-based-routing",
         num_retries=0,
